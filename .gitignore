@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+downloads_instagram/
+.instagram-cookies.txt
+debug_logged_page.png
+
+*.log
+.DS_Store
+Thumbs.db
