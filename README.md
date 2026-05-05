@@ -1,10 +1,25 @@
 # IG Post Downloader
 
-Bot em Python para baixar posts de perfis do Instagram usando um navegador real com sessao persistente.
+Baixador de posts do Instagram em Python com navegador real, sessao persistente e organizacao automatica por post.
 
-Nome sugerido para o repositorio no GitHub: `ig-post-downloader`
+Descricao curta sugerida para o GitHub:
+`Download de posts do Instagram com login em navegador real, sessao persistente e exportacao organizada por post.`
 
-## Preparacao
+## O que ele faz
+
+- baixa fotos, videos e carrosseis
+- usa navegador real para login, sem janela fake
+- reaproveita a sessao salva nas proximas execucoes
+- organiza a saida em pastas `POST 01`, `POST 02`, `POST 03`...
+- converte videos para `H.264 + AAC`, melhorando compatibilidade
+
+## Requisitos
+
+- Windows
+- Python 3.11+
+- Brave, Edge, Chrome ou Chromium instalado
+
+## Instalacao
 
 ```powershell
 python -m venv .venv
@@ -17,8 +32,7 @@ python -m venv .venv
 .\.venv\Scripts\python .\baixar_instagram.py "https://www.instagram.com/nomedoperfil/"
 ```
 
-No primeiro uso o Instagram provavelmente vai pedir login.
-O script abre um navegador real instalado no Windows, priorizando Brave e depois Edge/Chrome, espera voce entrar na sua conta e salva a sessao em uma subpasta de:
+No primeiro uso o Instagram provavelmente vai pedir login. O script abre um navegador real instalado no Windows, priorizando Brave e depois Edge/Chrome, espera voce entrar na conta e salva a sessao em:
 
 `downloads_instagram\.playwright-instagram-session\`
 
@@ -32,68 +46,81 @@ Depois disso, as proximas execucoes costumam funcionar sem pedir login de novo.
 
 Por padrao ele baixa tudo: fotos, videos e carrosseis mistos.
 
-## Escolher tipo de midia
+## Exemplos
+
+Baixar tudo:
 
 ```powershell
 .\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --midia tudo
+```
+
+Baixar so fotos:
+
+```powershell
 .\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --midia foto
+```
+
+Baixar so videos:
+
+```powershell
 .\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --midia video
 ```
 
-## Escolher navegador
+Usar um navegador especifico:
 
 ```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --browser auto
 .\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --browser brave
 .\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --browser edge
 .\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --browser chrome
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --browser chromium
 ```
 
-## Testar com poucos posts
+Testar com poucos posts:
 
 ```powershell
 .\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --max-posts 3
 ```
 
-## Rodar headless depois da sessao salva
+Rodar sem abrir janela depois da sessao salva:
 
 ```powershell
 .\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --headless
 ```
 
-## Falhar sem esperar login
-
-```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --headless --nao-esperar-login
-```
-
 ## Saida
 
 Os arquivos ficam por padrao em `downloads_instagram\<perfil>\`.
-Cada post vira uma pasta numerada, por exemplo:
 
-`POST 01\01.mp4`
+Exemplo:
 
-`POST 02\01.mp4`
+```text
+downloads_instagram\
+  nomedoperfil\
+    POST 01\
+      01.mp4
+    POST 02\
+      01.jpg
+      02.jpg
+    POST 03\
+      01.mp4
+```
 
-Dentro de cada pasta os arquivos saem numerados como `01.mp4`, `02.jpg` e assim por diante.
+## Atalhos .bat
 
-## Rodar com dois cliques
+- `baixar_instagram.bat`: pergunta perfil, tipo de midia, navegador e limite
+- `baixar_instagram_brave.bat`: fluxo direto pelo Brave
+- `baixar_instagram_edge.bat`: fluxo direto pelo Edge
 
-Use [baixar_instagram.bat](C:/Users/tutim/Documents/Codex/2026-05-04/quero-q-tu-fa-a-um/baixar_instagram.bat:1) para abrir um prompt simples, instalar o que faltar e escolher perfil, tipo de midia e limite.
+## Observacoes
 
-Se quiser um atalho ja focado em baixar tudo pelo Brave, use [baixar_instagram_brave.bat](C:/Users/tutim/Documents/Codex/2026-05-04/quero-q-tu-fa-a-um/baixar_instagram_brave.bat:1). Ele pede o perfil e usa `--midia tudo --browser brave`.
+- sem login, alguns perfis podem ficar bloqueados pelo Instagram
+- a sessao, cookies e downloads ficam fora do Git por causa do `.gitignore`
+- os videos saem em formato compativel para reduzir casos de video preto ou sem audio
 
-Se preferir Edge, use [baixar_instagram_edge.bat](C:/Users/tutim/Documents/Codex/2026-05-04/quero-q-tu-fa-a-um/baixar_instagram_edge.bat:1).
+## Publicacao
 
-## Publicar no GitHub
-
-O projeto ja esta com `.gitignore` para nao subir:
+O `.gitignore` ja evita subir:
 
 - `.venv`
 - `downloads_instagram`
 - cookies e sessao local
-- arquivos de debug
-
-Com isso, seus amigos recebem so o bot, sem seu login nem os arquivos baixados.
+- arquivos temporarios e de debug
