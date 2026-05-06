@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import html
 import os
+import platform
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -38,27 +40,62 @@ PROXIMO_REGEX = re.compile(r"^(Next|Avancar|Avançar|Pr[oó]ximo)$", re.IGNORECA
 BROWSERS = {
     "brave": {
         "nome": "Brave",
-        "executaveis": [
-            r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe",
-            r"%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe",
-            r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe",
-        ],
+        "executaveis": {
+            "windows": [
+                r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe",
+                r"%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe",
+                r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe",
+            ],
+            "darwin": [
+                "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            ],
+            "linux": [
+                "/usr/bin/brave-browser",
+                "/usr/bin/brave",
+                "/snap/bin/brave",
+            ],
+        },
+        "comandos": ["brave-browser", "brave"],
     },
     "msedge": {
         "nome": "Microsoft Edge",
-        "executaveis": [
-            r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
-            r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
-            r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe",
-        ],
+        "executaveis": {
+            "windows": [
+                r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
+                r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+                r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe",
+            ],
+            "darwin": [
+                "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            ],
+            "linux": [
+                "/usr/bin/microsoft-edge",
+                "/usr/bin/microsoft-edge-stable",
+                "/snap/bin/microsoft-edge",
+            ],
+        },
+        "comandos": ["microsoft-edge", "microsoft-edge-stable", "msedge"],
     },
     "chrome": {
         "nome": "Google Chrome",
-        "executaveis": [
-            r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
-            r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
-            r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe",
-        ],
+        "executaveis": {
+            "windows": [
+                r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
+                r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
+                r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe",
+            ],
+            "darwin": [
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            ],
+            "linux": [
+                "/usr/bin/google-chrome",
+                "/usr/bin/google-chrome-stable",
+                "/usr/bin/chromium",
+                "/usr/bin/chromium-browser",
+            ],
+        },
+        "comandos": ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome"],
     },
 }
 
@@ -75,6 +112,15 @@ class YtDlpSilencioso:
 
     def error(self, _msg: str) -> None:
         return
+
+
+def nome_plataforma() -> str:
+    sistema = platform.system().lower()
+    if sistema.startswith("win"):
+        return "windows"
+    if sistema == "darwin":
+        return "darwin"
+    return "linux"
 
 
 def extrair_username(entrada: str) -> str:
@@ -495,12 +541,40 @@ def filtrar_midias(midias: list[dict[str, str]], modo_midia: str) -> list[dict[s
     raise ValueError(f"Modo de midia invalido: {modo_midia}")
 
 
+def browser_instalado(navegador: str) -> bool:
+    return encontrar_executavel(navegador) is not None
+
+
 def encontrar_executavel(navegador: str) -> Path | None:
-    for modelo in BROWSERS[navegador]["executaveis"]:
+    plataforma = nome_plataforma()
+    dados = BROWSERS[navegador]
+
+    for modelo in dados["executaveis"].get(plataforma, []):
         caminho = Path(os.path.expandvars(modelo))
         if caminho.exists():
             return caminho
+
+    for comando in dados.get("comandos", []):
+        encontrado = shutil.which(comando)
+        if encontrado:
+            caminho = Path(encontrado)
+            if caminho.exists():
+                return caminho
     return None
+
+
+def instalar_playwright_browser(navegador: str) -> None:
+    if getattr(sys, "frozen", False):
+        raise RuntimeError(
+            "Nao consegui instalar automaticamente o navegador embutido nesta versao empacotada. "
+            "Escolha um navegador do sistema com --browser auto, chrome, edge ou brave."
+        )
+
+    print(f"Instalando {navegador} do Playwright pela primeira vez...")
+    subprocess.run(
+        [sys.executable, "-m", "playwright", "install", navegador],
+        check=True,
+    )
 
 
 def porta_livre() -> int:
@@ -522,7 +596,7 @@ def esperar_cdp(porta: int, timeout_s: int = 30) -> None:
 
 def abrir_contexto_navegador(playwright, user_data_dir: Path, headless: bool, navegador: str, url_inicial: str):
     candidatos = {
-        "auto": ["brave", "msedge", "chrome", "chromium"],
+        "auto": ["chrome", "msedge", "brave", "chromium"],
         "brave": ["brave"],
         "edge": ["msedge"],
         "msedge": ["msedge"],
@@ -551,6 +625,20 @@ def abrir_contexto_navegador(playwright, user_data_dir: Path, headless: bool, na
                 return context, None, None
             except PlaywrightError as exc:
                 ultimo_erro = exc
+                mensagem = str(exc).lower()
+                if "executable doesn't exist" in mensagem or "please run the following command" in mensagem:
+                    try:
+                        instalar_playwright_browser("chromium")
+                        context = playwright.chromium.launch_persistent_context(
+                            user_data_dir=str(pasta_sessao),
+                            headless=headless,
+                            locale="pt-BR",
+                            args=[] if headless else ["--start-maximized"],
+                            viewport={"width": 1440, "height": 2200} if headless else None,
+                        )
+                        return context, None, None
+                    except Exception as exc_instalacao:
+                        ultimo_erro = exc_instalacao
                 continue
 
         executavel = encontrar_executavel(candidato)
@@ -573,16 +661,18 @@ def abrir_contexto_navegador(playwright, user_data_dir: Path, headless: bool, na
                 return context, None, None
 
             porta = porta_livre()
+            comando = [
+                str(executavel),
+                f"--remote-debugging-port={porta}",
+                f"--user-data-dir={pasta_sessao}",
+                "--no-first-run",
+                "--no-default-browser-check",
+                url_inicial,
+            ]
+            if nome_plataforma() == "windows":
+                comando.insert(-1, "--new-window")
             processo = subprocess.Popen(
-                [
-                    str(executavel),
-                    f"--remote-debugging-port={porta}",
-                    f"--user-data-dir={pasta_sessao}",
-                    "--no-first-run",
-                    "--no-default-browser-check",
-                    "--new-window",
-                    url_inicial,
-                ],
+                comando,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )

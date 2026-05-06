@@ -1,0 +1,63 @@
+name: build-release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Install build dependencies
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Build binary
+        run: >
+          pyinstaller --noconfirm --clean --onedir
+          --name IG-Downloader
+          --collect-all playwright
+          --collect-all yt_dlp
+          --collect-all imageio_ffmpeg
+          ig_downloader.py
+
+      - name: Pack binary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import shutil
+          from pathlib import Path
+          archive_base = Path("release") / "IG-Downloader-${{ matrix.os }}"
+          archive_base.parent.mkdir(parents=True, exist_ok=True)
+          shutil.make_archive(str(archive_base), "zip", "dist", "IG-Downloader")
+          print(f"Criado: {archive_base}.zip")
+          PY
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IG-Downloader-${{ matrix.os }}
+          path: release/IG-Downloader-${{ matrix.os }}.zip
+
+      - name: Publish release asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/IG-Downloader-${{ matrix.os }}.zip

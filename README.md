@@ -1,122 +1,170 @@
 # IG Post Downloader
 
-Baixador de posts do Instagram em Python com navegador real, sessao persistente e organizacao automatica por post.
+Baixador de posts do Instagram com launcher cross-platform, auto-instalacao de dependencias, sessao persistente e exportacao organizada por post.
 
 Descricao curta sugerida para o GitHub:
-`Download de posts do Instagram com login em navegador real, sessao persistente e exportacao organizada por post.`
+`Instagram downloader com launcher universal, login em navegador real, fallback automatico para Chromium e exportacao organizada por post.`
 
 ## O que ele faz
 
 - baixa fotos, videos e carrosseis
-- usa navegador real para login, sem janela fake
-- reaproveita a sessao salva nas proximas execucoes
 - organiza a saida em pastas `POST 01`, `POST 02`, `POST 03`...
+- reaproveita a sessao salva nas proximas execucoes
+- usa navegador do sistema quando existir
+- faz fallback automatico para Chromium do Playwright quando necessario
 - converte videos para `H.264 + AAC`, melhorando compatibilidade
+- cria o `.venv` e instala dependencias sozinho pelo launcher
 
-## Requisitos
+## Plataformas
 
-- Windows
-- Python 3.11+
-- Brave, Edge, Chrome ou Chromium instalado
+- Windows: suportado e validado localmente
+- macOS: preparado no codigo e no launcher
+- Linux: preparado no codigo e no launcher
 
-## Instalacao
+Importante:
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements.txt
+- um unico `.exe` nao roda em todos os sistemas operacionais
+- o executavel gerado aqui e para Windows
+- para macOS e Linux, o projeto roda pelo launcher Python ou por builds gerados no GitHub Actions
+- nenhum downloader de Instagram consegue prometer `100% sem erro`, porque o proprio Instagram pode exigir login, mudar layout ou bloquear acesso
+
+## Jeito mais facil de usar
+
+### Windows
+
+- clique em `baixar_instagram.bat`
+- ou rode `dist\IG-Downloader\IG-Downloader.exe` depois de gerar o build
+
+### macOS e Linux
+
+```bash
+python3 ig_downloader.py
 ```
 
-## Primeiro uso
+Ou:
 
-```powershell
-.\.venv\Scripts\python .\baixar_instagram.py "https://www.instagram.com/nomedoperfil/"
+```bash
+./baixar_instagram.sh
 ```
 
-No primeiro uso o Instagram provavelmente vai pedir login. O script abre um navegador real instalado no Windows, priorizando Brave e depois Edge/Chrome, espera voce entrar na conta e salva a sessao em:
+## Auto-instalacao
 
-`downloads_instagram\.playwright-instagram-session\`
+O launcher `ig_downloader.py`:
 
-Depois disso, as proximas execucoes costumam funcionar sem pedir login de novo.
-
-## Uso basico
-
-```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil
-```
-
-Por padrao ele baixa tudo: fotos, videos e carrosseis mistos.
+- cria `.venv` automaticamente
+- instala `requirements.txt` automaticamente
+- reinicia dentro do ambiente virtual
+- abre um modo interativo se voce nao passar argumentos
 
 ## Exemplos
 
 Baixar tudo:
 
 ```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --midia tudo
+python ig_downloader.py nomedoperfil --midia tudo
 ```
 
 Baixar so fotos:
 
 ```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --midia foto
+python ig_downloader.py nomedoperfil --midia foto
 ```
 
 Baixar so videos:
 
 ```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --midia video
+python ig_downloader.py nomedoperfil --midia video
 ```
 
-Usar um navegador especifico:
+Escolher navegador:
 
 ```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --browser brave
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --browser edge
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --browser chrome
+python ig_downloader.py nomedoperfil --browser auto
+python ig_downloader.py nomedoperfil --browser chrome
+python ig_downloader.py nomedoperfil --browser edge
+python ig_downloader.py nomedoperfil --browser brave
+python ig_downloader.py nomedoperfil --browser chromium
 ```
 
 Testar com poucos posts:
 
 ```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --max-posts 3
+python ig_downloader.py nomedoperfil --max-posts 3
 ```
 
-Rodar sem abrir janela depois da sessao salva:
+Rodar sem abrir janela:
 
 ```powershell
-.\.venv\Scripts\python .\baixar_instagram.py nomedoperfil --headless
+python ig_downloader.py nomedoperfil --headless
 ```
+
+## Navegadores
+
+O modo `auto` tenta nesta ordem:
+
+1. Chrome
+2. Edge
+3. Brave
+4. Chromium do Playwright
+
+Se a maquina nao tiver navegador compativel instalado, o fallback esperado e o `chromium`, que o Playwright instala automaticamente na versao Python.
 
 ## Saida
 
-Os arquivos ficam por padrao em `downloads_instagram\<perfil>\`.
+Os arquivos ficam por padrao em `downloads_instagram/<perfil>/`.
 
 Exemplo:
 
 ```text
-downloads_instagram\
-  nomedoperfil\
-    POST 01\
+downloads_instagram/
+  nomedoperfil/
+    POST 01/
       01.mp4
-    POST 02\
+    POST 02/
       01.jpg
       02.jpg
-    POST 03\
+    POST 03/
       01.mp4
 ```
 
-## Atalhos .bat
+## Arquivos principais
 
-- `baixar_instagram.bat`: pergunta perfil, tipo de midia, navegador e limite
-- `baixar_instagram_brave.bat`: fluxo direto pelo Brave
-- `baixar_instagram_edge.bat`: fluxo direto pelo Edge
+- `ig_downloader.py`: launcher universal com auto-setup
+- `baixar_instagram.py`: nucleo do downloader
+- `baixar_instagram.bat`: atalho Windows
+- `baixar_instagram.sh`: atalho Linux/macOS
+- `build_windows_exe.bat`: gera o executavel Windows
 
-## Observacoes
+## Gerar executavel Windows
 
-- sem login, alguns perfis podem ficar bloqueados pelo Instagram
-- a sessao, cookies e downloads ficam fora do Git por causa do `.gitignore`
-- os videos saem em formato compativel para reduzir casos de video preto ou sem audio
+```powershell
+.\build_windows_exe.bat
+```
 
-## Publicacao
+Saida esperada:
+
+```text
+dist/IG-Downloader/
+```
+
+## Builds automatizados no GitHub
+
+O workflow em `.github/workflows/build-release.yml` esta preparado para:
+
+- Windows
+- macOS
+- Linux
+
+Quando voce sobe uma tag `v*`, ele gera builds em cada sistema. Isso e o caminho certo para distribuir binarios nativos por sistema operacional.
+
+## Observacoes reais
+
+- sem login, alguns perfis vao continuar bloqueados pelo Instagram
+- um perfil pode parar de funcionar se o Instagram mudar seletores ou politicas
+- a versao Windows foi validada localmente
+- a logica cross-platform foi preparada, mas macOS e Linux dependem de teste nesses sistemas
+
+## Git e privacidade
 
 O `.gitignore` ja evita subir:
 
